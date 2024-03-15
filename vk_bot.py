@@ -3,14 +3,14 @@ import asyncio
 from vkbottle import Text, Keyboard
 from vkbottle.bot import Bot, Message
 from keyboards import main_menu_keyboard, cancel_keyboard, confirm_send_keyboard
-from states import SendNewsStates
+from states import SendNewsStates, AnswerAdmins
 from utils import report_to_admin
 
 # from utils import report_to_admin
 
 bot = Bot(
-    token="vk1.a.pFHEFJWwjVYIWnAo5k26wli7_B-OpIWa0x5ZqB13y4xupmEftzBfy99OuQcnSggEkHqS8LD4sgj0jH-Uz7IYqjYGLnr1kRzcQpM_8oJTDVB7WfbapYkYpbNy-i0mi_k2DYSZFSfEBYhDhpbv4owuEaLHoxmKMYD2WhsA6MXvjTSOytN0a3YD8-p9shGPXJ3Ppj6DWGWStcNtMulILwwSTA")
-
+    token="vk1.a.AX7lLnQwWk7BfMsTgLzRwH9iGaRC6t6SantgWnkdz1DFSWHmCigGYONN-os6fKfA5FxNjh4AnafLH1Gg0Fi01JU95Hop2bZ2qjad2xCVSl7rDxvkGQV8kODnHfGAOrmZyanyNf7tbrTyZwSHVWAkRb1LVkmvO4ymYK3ab7qbLDyS0tNkMeBdcDCquzAhkuTwgZ6Fsu2dD-pghckzAVxagA")
+# cancel_keyboard
 
 @bot.on.message(text="Начать")
 async def main_menu_handler(message: Message):
@@ -51,9 +51,23 @@ async def confirm_answer(message: Message):
         state_data = state_data.payload
         text_to_admin = f"Сообщили o новости в городе *{state_data['city_name']}* в Вконтакте\n\n{state_data['news_text']} \n\nОт пользователя https://vk.com/id{message.peer_id}"
         await report_to_admin(text_to_admin, message.peer_id)
-        text = '☺️ Спасибо!\n\nНаша команда была проинформирована, ожидайте ответа в ближайшее врем'
+        text = '☺️ Спасибо!\n\nНаша команда была проинформирована, ожидайте ответа в ближайшее время'
     else:
         text = 'Для отправки новости нажмите кнопку ниже 👇🏻'
+    await message.answer(message=text, keyboard=main_menu_keyboard.get_json())
+    await bot.state_dispenser.delete(message.peer_id)
+
+
+@bot.on.message(text='💬 Ответить')
+async def answer_to_admin(message: Message):
+    await bot.state_dispenser.set(message.peer_id, AnswerAdmins.send_answer_text)
+    await message.answer(message='Введите текст для ответа в следующем  сообщении')
+
+
+@bot.on.message(state=AnswerAdmins.send_answer_text)
+async def answer_to_admin(message: Message):
+    text = '☺️ Спасибо!\n\nНаша команда была проинформирована, ожидайте ответа в ближайшее время'
+    await report_to_admin(f'Получено сообщение по обращению:\n\n{message.text}', message.peer_id)
     await message.answer(message=text, keyboard=main_menu_keyboard.get_json())
     await bot.state_dispenser.delete(message.peer_id)
 
