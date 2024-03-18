@@ -1,16 +1,29 @@
 import asyncio
-
 from vkbottle import Text, Keyboard
-from vkbottle.bot import Bot, Message
+from vkbottle.api import API
+from vkbottle.bot import Bot, Message, run_multibot
+
+from config import tokens_list
 from keyboards import main_menu_keyboard, cancel_keyboard, confirm_send_keyboard
 from states import SendNewsStates, AnswerAdmins
 from utils import report_to_admin
+import logging
 
-# from utils import report_to_admin
+bot = Bot()
+api = API(
+    token='vk1.a.6cvd9dS71kARWykfdxDm5cDT9sPIASHqeS0Uij44Mjn08PKdom9nuHd1su9oiAmzW1YW9XZtQX4UJ90djoG82kJY66Ph-cs4ucl-alS2vwo-ikAkayT4ZVU9D8Jr5ulXWuX5OOYNWzwstxelXOW7nb4zmg53A8GoRzjlJoDZQKYrV0M_y2o71fjZxatRSkKSgkvjHgR2DUS1q-yTtfGZhA')
 
-bot = Bot(
-    token="vk1.a.AX7lLnQwWk7BfMsTgLzRwH9iGaRC6t6SantgWnkdz1DFSWHmCigGYONN-os6fKfA5FxNjh4AnafLH1Gg0Fi01JU95Hop2bZ2qjad2xCVSl7rDxvkGQV8kODnHfGAOrmZyanyNf7tbrTyZwSHVWAkRb1LVkmvO4ymYK3ab7qbLDyS0tNkMeBdcDCquzAhkuTwgZ6Fsu2dD-pghckzAVxagA")
-# cancel_keyboard
+
+# rSyjLkdpM8mSYRQpxCZE
+
+
+
+@bot.on.message(text='❌ Отмена')
+async def main_menu(message: Message):
+    await bot.state_dispenser.delete(message.peer_id)
+    text = 'Для отправки новости нажмите кнопку ниже 👇🏻'
+    await message.answer(message=text, keyboard=main_menu_keyboard.get_json())
+
 
 @bot.on.message(text="Начать")
 async def main_menu_handler(message: Message):
@@ -20,37 +33,27 @@ async def main_menu_handler(message: Message):
 
 @bot.on.message(text='✍️ Сообщить о происшествии')
 async def begin_news_report(message: Message):
-    text = 'В следующем сообщении отправьте название города в котором произошла новость.'
-    await bot.state_dispenser.set(message.peer_id, SendNewsStates.send_city_name)
-    await message.answer(message=text, keyboard=cancel_keyboard.get_json())
-
-
-@bot.on.message(state=SendNewsStates.send_city_name)
-async def fetch_city_name(message: Message):
-    text = 'Отлично 👍\n\nВ следуюшем сообщении изложите суть новости'
-    await bot.state_dispenser.set(message.peer_id, SendNewsStates.send_news, city_name=message.text)
+    text = 'В следующем сообщении кратко изложите суть новости.'
+    await bot.state_dispenser.set(message.peer_id, SendNewsStates.send_news)
     await message.answer(message=text, keyboard=cancel_keyboard.get_json())
 
 
 @bot.on.message(state=SendNewsStates.send_news)
 async def fetch_news_text(message: Message):
-    state_data = await bot.state_dispenser.get(message.peer_id)
-    state_data = state_data.payload
     text = ('Пожалуйста, проверьте введенную вами новость:\n\n'
-            f'{state_data["city_name"]}\n'
             f'{message.text}')
-    await bot.state_dispenser.set(message.peer_id, SendNewsStates.send_confirm, news_text=message.text,
-                                  city_name=state_data['city_name'])
+    await bot.state_dispenser.set(message.peer_id, SendNewsStates.send_confirm, news_text=message.text)
     await message.answer(message=text, keyboard=confirm_send_keyboard)
 
 
 @bot.on.message(state=SendNewsStates.send_confirm)
 async def confirm_answer(message: Message):
     if message.text == '✅ Отправить':
+        group = await api.groups.get_by_id(message.group_id)
         state_data = await bot.state_dispenser.get(message.peer_id)
         state_data = state_data.payload
-        text_to_admin = f"Сообщили o новости в городе *{state_data['city_name']}* в Вконтакте\n\n{state_data['news_text']} \n\nОт пользователя https://vk.com/id{message.peer_id}"
-        await report_to_admin(text_to_admin, message.peer_id)
+        text_to_admin = f"Сообщили o новости в *{group[0].name}*\n\n{state_data['news_text']} \n\nОт пользователя https://vk.com/id{message.peer_id}"
+        await report_to_admin(text_to_admin, message.peer_id, message.group_id)
         text = '☺️ Спасибо!\n\nНаша команда была проинформирована, ожидайте ответа в ближайшее время'
     else:
         text = 'Для отправки новости нажмите кнопку ниже 👇🏻'
@@ -72,5 +75,10 @@ async def answer_to_admin(message: Message):
     await bot.state_dispenser.delete(message.peer_id)
 
 
+
+
 if __name__ == '__main__':
-    asyncio.run(bot.run_polling())
+    logging.getLogger("vkbottle").setLevel(logging.INFO)
+    run_multibot(bot, apis=(API(i) for i in tokens_list))
+
+# kazan vk1.a.w2RUNqNEtVMtBGtyylOP_IXaGs95iwem3qXhJL_nxk6-sxhJ4RKLpWJ9OY81qXuX7QehUr0oGK9NZJyXrgDia6EDLGRNl5GV2yYooD5LpJ43VbC52bUyE3mS9ayyn0kD00G-9R0RT5JONVeTi7Ho0ELvb90GIXWeDsSlmuFMNDmxowi9avtCZF8qGpvZdEe4LE2Gr15hsSqbRUh5WCEhtg
